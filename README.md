@@ -8,3 +8,5 @@ To submit this assignment, fork this repository, and checkout to `code-assigment
 `git checkout origin/code-assigment-1`
 
 Prepare a Pr and select `code-assigment-1` as merge branch.
+
+The text of the assignment can be found [here](https://github.com/swankyhub/Investment-dao)
