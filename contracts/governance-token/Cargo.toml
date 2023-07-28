@@ -1,6 +1,6 @@
 #   Implement PSP2 + PSP22Metadata
 [package]
-name = "my_psp22"
+name = "my_psp22_metadata"
 version = "1.0.0"
 edition = "2021"
 authors = ["The best developer ever"]
@@ -28,6 +28,6 @@ std = [
     "scale/std",
     "scale-info/std",
 
-    # "openbrush/std",
+    "openbrush/std",
 ]
 ink-as-dependency = [] 

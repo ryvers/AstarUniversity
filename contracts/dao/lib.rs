@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+// use my_psp22_metadata::GovernanceTokenRef;
+
 #[ink::contract]
 pub mod dao {
     use ink::storage::Mapping;
@@ -7,6 +9,10 @@ pub mod dao {
     use scale::{
         Decode,
         Encode,
+    };
+    use ink::env::{
+        call::{build_call, ExecutionInput, Selector},
+        DefaultEnvironment,
     };
 
     #[derive(Encode, Decode)]
@@ -23,14 +29,14 @@ pub mod dao {
         AmountExceedsBalance,
         AmountShouldNotBeZero,
         DurationError,
-        InvalidVoteType,
         ProposalNotFound,
         ProposalAlreadyExecuted,
         VotePeriodEnded,
         QuorumNotReached,
         ProposalNotAccepted,
         QuorumInvalid,
-        AlreadyVoted
+        AlreadyVoted,
+        FailedTransfer,
     }
 
     #[derive(Encode, Decode)]
@@ -70,6 +76,7 @@ pub mod dao {
     }
 
     pub type ProposalId = u64;
+    static ONE_MINUTE: u64 = 60;
 
     #[ink(storage)]
     pub struct Governor {
@@ -85,10 +92,6 @@ pub mod dao {
     impl Governor {
         #[ink(constructor, payable)]
         pub fn new(governance_token: AccountId, quorum: u8) -> Self {
-            //unimplemented!();
-            // if quorum < 1 || quorum > 10 {
-            //     return Err(DaoError::QuorumInvalid);
-            // }
             Self {
                 proposals: Default::default(),
                 next_proposal_id: Default::default(),
@@ -122,12 +125,17 @@ pub mod dao {
             let proposal = Proposal {
                 to,
                 vote_start: start,
-                vote_end: start + duration * 60,
+                vote_end: start + duration * ONE_MINUTE,
                 executed: false,
                 amount,
             };
-            self.next_proposal_id = self.next_proposal_id + 1;
+            
+            self.next_proposal_id = self.next_proposal_id() + 1;
             self.proposals.insert(self.next_proposal_id, &proposal);
+            self.proposal_votes.insert(proposal, &{ ProposalVote {
+                    for_votes: 0,
+                    against_votes: 0
+                }});
             Ok(())
         }
 
@@ -137,15 +145,11 @@ pub mod dao {
             proposal_id: ProposalId,
             vote: VoteType,
         ) -> Result<(), DaoError> {
-            if self.check_vote_correctness(vote) == false {
-                return Err(DaoError::InvalidVoteType)
-            }
-
             if self.proposals.contains(&proposal_id) == false {
                 return Err(DaoError::ProposalNotFound)
             }
 
-            let Some(proposal) = self.proposals.get(&proposal_id);
+            let proposal = self.get_proposal(proposal_id).unwrap();
 
             if proposal.executed == true {
                 return Err(DaoError::ProposalAlreadyExecuted);
@@ -167,40 +171,72 @@ pub mod dao {
             let caller_balance = self.get_balance_of(caller);
             let weight = caller_balance/total_supply * 100; //in percentage
 
-            let votes_distribution = self
+            let _votes_distribution = self
                 .proposal_votes
-                .get(proposal)
-                .get_or_insert_with(|| ProposalVote {
-                    for_votes: 0,
-                    against_votes: 0
-                });
+                .get(&proposal);
 
             match vote {
                 VoteType::Against => {
+                    let Some(mut votes_distribution) = self
+                        .proposal_votes
+                        .get(proposal) else { todo!() };
                     votes_distribution.against_votes = votes_distribution.against_votes + weight;
                 },
                 VoteType::For => {
+                    let Some(mut votes_distribution) = self
+                        .proposal_votes
+                        .get(proposal) else { todo!() };
                     votes_distribution.for_votes = votes_distribution.for_votes + weight;
                 }
             }
             Ok(())
         }
 
-        fn check_vote_correctness(&self, value: VoteType) -> bool {
-            match value {
-                VoteType::Against | VoteType::For => true,
-                _ => false,
+        fn get_proposal(&self, proposal_id: ProposalId) -> Option<Proposal> {
+            if let Some(proposal) = self.proposals.get(&proposal_id) {
+                Some(proposal)
+            } else {
+                None
             }
         }
 
+        fn get_proposal_votes(&self, proposal_id: ProposalId) -> Option<ProposalVote> {
+            let proposal = self.get_proposal(proposal_id).unwrap();
+            if let Some(votes_distribution) = self.proposal_votes.get(&proposal) {
+                Some(votes_distribution)
+            } else {
+                None
+            }
+        }
+
+        fn next_proposal_id(&self) -> ProposalId {
+            // self.next_proposal_id = self.next_proposal_id + 1;
+            self.next_proposal_id
+        }
+
         fn get_total_supply(&self) -> Balance {
-            let contract_instance = Psp22::from_account_id(self.governance_token);
-            contract_instance.total_supply()
+            let total_supply = build_call::<DefaultEnvironment>()
+                .call(self.governance_token)
+                .gas_limit(0)
+                .exec_input(
+                    ExecutionInput::new(Selector::new(ink::selector_bytes!("total_supply")))
+                )
+                .returns::<Balance>()
+                .invoke();
+            total_supply
         }
 
         fn get_balance_of(&self, account: AccountId) -> Balance {
-            let contract_instance = Psp22::from_account_id(self.governance_token);
-            return contract_instance.balance_of(account);
+            let balance = build_call::<DefaultEnvironment>()
+                .call(self.governance_token)
+                .gas_limit(0)
+                .exec_input(
+                    ExecutionInput::new(Selector::new(ink::selector_bytes!("balance_of")))
+                    .push_arg(&account)
+                )
+                .returns::<Balance>()
+                .invoke();
+            balance
         }
 
         #[ink(message)]
@@ -209,15 +245,13 @@ pub mod dao {
                 return Err(DaoError::ProposalNotFound)
             }
 
-            let Some(proposal) = self.proposals.get(&proposal_id);
+            let mut proposal = self.get_proposal(proposal_id).unwrap();
 
             if proposal.executed == true {
                 return Err(DaoError::ProposalAlreadyExecuted);
             }
 
-            let Some(votes_distribution) = self
-                .proposal_votes
-                .get(proposal);
+            let votes_distribution = self.get_proposal_votes(proposal_id).unwrap();
             
             if votes_distribution.against_votes + votes_distribution.for_votes < self.quorum.into() {
                 return Err(DaoError::QuorumNotReached);
@@ -228,8 +262,13 @@ pub mod dao {
             }
 
             proposal.executed = true;
-            self.transfer(proposal.to, proposal.amount);
-            Ok(())
+            
+            match self.transfer(proposal.to, proposal.amount) {
+                Ok(_) => Ok(()),
+                Err(_error) => {
+                    Err(DaoError::FailedTransfer)
+                }
+            }
         }
 
         fn transfer(&mut self, recipient: AccountId, amount: u128) -> Result<(), ink_env::Error> {
@@ -288,7 +327,7 @@ pub mod dao {
             );
             let result = governor.propose(accounts.django, 100, 1);
             assert_eq!(result, Ok(()));
-            let proposal = governor.get_proposal(0).unwrap();
+            let proposal = governor.get_proposal(1).unwrap();
             let now = governor.now();
             assert_eq!(
                 proposal,
@@ -308,7 +347,8 @@ pub mod dao {
             let mut governor = create_contract(1000);
             let result = governor.propose(AccountId::from([0x02; 32]), 100, 1);
             assert_eq!(result, Ok(()));
-            let execute = governor.execute(0);
+            assert_eq!(governor.next_proposal_id(), 1);
+            let execute = governor.execute(1);
             assert_eq!(execute, Err(DaoError::QuorumNotReached));
         }
     }
