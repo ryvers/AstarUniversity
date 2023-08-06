@@ -5,7 +5,7 @@
 #[ink::contract]
 pub mod dao {
     use ink::storage::Mapping;
-    use openbrush::contracts::traits::psp22::*;
+    // use openbrush::contracts::traits::psp22::*;
     use scale::{
         Decode,
         Encode,
@@ -14,6 +14,29 @@ pub mod dao {
         call::{build_call, ExecutionInput, Selector},
         DefaultEnvironment,
     };
+    // use core::fmt::Write;
+
+    #[ink(event)]
+    pub struct ProposalSubmitted {
+        // indexed variable 
+        #[ink(topic)]
+        proposal_id: ProposalId,
+        to: AccountId,
+        amount: u128,
+        vote_start: u64,
+        vote_end: u64,
+        caller: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct ProposalClosed {
+        // indexed variable 
+        #[ink(topic)]
+        proposal_id: ProposalId,
+        to: AccountId,
+        amount: u128,
+        caller: AccountId,
+    }
 
     #[derive(Encode, Decode)]
     #[cfg_attr(feature = "std", derive(Debug, PartialEq, Eq, scale_info::TypeInfo))]
@@ -25,7 +48,6 @@ pub mod dao {
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Encode, Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum DaoError { 
-        // to implement
         AmountExceedsBalance,
         AmountShouldNotBeZero,
         DurationError,
@@ -70,7 +92,6 @@ pub mod dao {
         )
     )]
     pub struct ProposalVote {
-        // to implement
         for_votes: u128,
         against_votes: u128,
     }
@@ -80,7 +101,6 @@ pub mod dao {
 
     #[ink(storage)]
     pub struct Governor {
-        // to implement
         proposals: Mapping<ProposalId, Proposal>,
         next_proposal_id: ProposalId,
         votes: Mapping<(ProposalId, AccountId), ()>,
@@ -122,10 +142,11 @@ pub mod dao {
             }
 
             let start = self.env().block_timestamp();
+            let end = start + (duration * ONE_MINUTE);
             let proposal = Proposal {
                 to,
                 vote_start: start,
-                vote_end: start + duration * ONE_MINUTE,
+                vote_end: end,
                 executed: false,
                 amount,
             };
@@ -136,6 +157,16 @@ pub mod dao {
                     for_votes: 0,
                     against_votes: 0
                 }});
+
+            self.env().emit_event(ProposalSubmitted {
+                proposal_id: self.next_proposal_id,
+                to: to,
+                amount: amount,
+                vote_start: start,
+                vote_end: end,
+                caller: self.env().caller()
+            });
+
             Ok(())
         }
 
@@ -169,7 +200,7 @@ pub mod dao {
 
             let total_supply = self.get_total_supply();
             let caller_balance = self.get_balance_of(caller);
-            let weight = caller_balance/total_supply * 100; //in percentage
+            let weight = caller_balance/total_supply * 100; // percentage
 
             let _votes_distribution = self
                 .proposal_votes
@@ -177,15 +208,11 @@ pub mod dao {
 
             match vote {
                 VoteType::Against => {
-                    let Some(mut votes_distribution) = self
-                        .proposal_votes
-                        .get(proposal) else { todo!() };
+                    let mut votes_distribution = self.get_proposal_votes(proposal_id).unwrap();
                     votes_distribution.against_votes = votes_distribution.against_votes + weight;
                 },
                 VoteType::For => {
-                    let Some(mut votes_distribution) = self
-                        .proposal_votes
-                        .get(proposal) else { todo!() };
+                    let mut votes_distribution = self.get_proposal_votes(proposal_id).unwrap();
                     votes_distribution.for_votes = votes_distribution.for_votes + weight;
                 }
             }
@@ -207,11 +234,6 @@ pub mod dao {
             } else {
                 None
             }
-        }
-
-        fn next_proposal_id(&self) -> ProposalId {
-            // self.next_proposal_id = self.next_proposal_id + 1;
-            self.next_proposal_id
         }
 
         fn get_total_supply(&self) -> Balance {
@@ -262,17 +284,18 @@ pub mod dao {
             }
 
             proposal.executed = true;
-            
-            match self.transfer(proposal.to, proposal.amount) {
-                Ok(_) => Ok(()),
-                Err(_error) => {
-                    Err(DaoError::FailedTransfer)
-                }
-            }
-        }
 
-        fn transfer(&mut self, recipient: AccountId, amount: u128) -> Result<(), ink_env::Error> {
-            ink_env::transfer::<ink_env::DefaultEnvironment>(recipient, amount)?;
+            let transfer_result = self.env().transfer(proposal.to, proposal.amount);
+            console.log(transfer_result);
+            if transfer_result.is_err() {
+                return Err(DaoError::FailedTransfer)
+            }
+            self.env().emit_event(ProposalClosed {
+                proposal_id: proposal_id,
+                to: proposal.to,
+                amount: proposal.amount,
+                caller: self.env().caller()
+            });
             Ok(())
         }
 
@@ -280,6 +303,11 @@ pub mod dao {
         #[ink(message)]
         pub fn now(&self) -> u64 {
             self.env().block_timestamp()
+        }
+
+        // used for test
+        fn next_proposal_id(&self) -> ProposalId {
+            self.next_proposal_id
         }
     }
 
@@ -324,6 +352,10 @@ pub mod dao {
             assert_eq!(
                 governor.propose(accounts.django, 100, 0),
                 Err(DaoError::DurationError)
+            );
+            assert_eq!(
+                governor.propose(accounts.django, 9999, 1),
+                Err(DaoError::AmountExceedsBalance)
             );
             let result = governor.propose(accounts.django, 100, 1);
             assert_eq!(result, Ok(()));
