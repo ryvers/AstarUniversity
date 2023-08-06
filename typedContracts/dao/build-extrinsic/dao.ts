@@ -63,44 +63,6 @@ export default class Methods {
 	}
 
 	/**
-	 * getProposalVote
-	 *
-	 * @param { (number | string | BN) } proposalId,
-	*/
-	"getProposalVote" (
-		proposalId: (number | string | BN),
-		__options: GasLimit,
-	){
-		return buildSubmittableExtrinsic( this.__apiPromise, this.__nativeContract, "getProposalVote", [proposalId], __options);
-	}
-
-	/**
-	 * getProposal
-	 *
-	 * @param { (number | string | BN) } proposalId,
-	*/
-	"getProposal" (
-		proposalId: (number | string | BN),
-		__options: GasLimit,
-	){
-		return buildSubmittableExtrinsic( this.__apiPromise, this.__nativeContract, "getProposal", [proposalId], __options);
-	}
-
-	/**
-	 * hasVoted
-	 *
-	 * @param { (number | string | BN) } proposalId,
-	 * @param { ArgumentTypes.AccountId } accountId,
-	*/
-	"hasVoted" (
-		proposalId: (number | string | BN),
-		accountId: ArgumentTypes.AccountId,
-		__options: GasLimit,
-	){
-		return buildSubmittableExtrinsic( this.__apiPromise, this.__nativeContract, "hasVoted", [proposalId, accountId], __options);
-	}
-
-	/**
 	 * now
 	 *
 	*/

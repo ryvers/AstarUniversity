@@ -1,16 +1,12 @@
-# AstarUniversity
+# Astar University
 Repo for Astar University Assignments submissions
 
 ## Coding Assignment 1 (Investment DAO)
 
-To submit this assignment, fork this repository, and checkout to `code-assigment-1` branch:
+Find the instructions to the assignment and the template following the link below
 
-`git checkout origin/code-assigment-1`
+Use the template [here](https://github.com/swankyhub/Investment-dao) to complete your assignment. 
 
-Prepare a Pr and select `code-assigment-1` as merge branch.
+Press  "Use this template"  following the link and create a new repository. 
 
-The text of the assignment can be found [here](https://github.com/swankyhub/Investment-dao)
-
-Please make sure to make the PR for your forked branch, not the official branch on AstarNetwork! (otherwise others will see your solution).
-
-Submit the link to your PR on LearnWorlds platform.
+Share the link of your repository with us via the LearnWorlds platform.  

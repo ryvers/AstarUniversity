@@ -23,13 +23,13 @@ export default class Constructors {
 	/**
 	* new
 	*
-	* @param { (string | number | BN) } totalSupply,
+	* @param { (string | number | BN) } initialSupply,
 	* @param { string | null } name,
 	* @param { string | null } symbol,
 	* @param { (number | string | BN) } decimal,
 	*/
    	async "new" (
-		totalSupply: (string | number | BN),
+		initialSupply: (string | number | BN),
 		name: string | null,
 		symbol: string | null,
 		decimal: (number | string | BN),
@@ -40,7 +40,7 @@ export default class Constructors {
 		const gasLimit = (await _genValidGasLimitAndValue(this.nativeAPI, __options)).gasLimit as WeightV2;
 
 		const storageDepositLimit = __options?.storageDepositLimit;
-			const tx = code.tx["new"]!({ gasLimit, storageDepositLimit, value: __options?.value }, totalSupply, name, symbol, decimal);
+			const tx = code.tx["new"]!({ gasLimit, storageDepositLimit, value: __options?.value }, initialSupply, name, symbol, decimal);
 			let response;
 
 			try {

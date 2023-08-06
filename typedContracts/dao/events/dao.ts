@@ -17,6 +17,34 @@ export default class EventsClass {
 		this.__api = api;
 	}
 
+	public subscribeOnProposalSubmittedEvent(callback : (event : EventTypes.ProposalSubmitted) => void) {
+		const callbackWrapper = (args: any[], event: any) => {
+			const _event: Record < string, any > = {};
+
+			for (let i = 0; i < args.length; i++) {
+				_event[event.args[i]!.name] = args[i]!.toJSON();
+			}
+
+			callback(handleEventReturn(_event, getEventTypeDescription('ProposalSubmitted', EVENT_DATA_TYPE_DESCRIPTIONS)) as EventTypes.ProposalSubmitted);
+		};
+
+		return this.__subscribeOnEvent(callbackWrapper, (eventName : string) => eventName == 'ProposalSubmitted');
+	}
+
+	public subscribeOnProposalClosedEvent(callback : (event : EventTypes.ProposalClosed) => void) {
+		const callbackWrapper = (args: any[], event: any) => {
+			const _event: Record < string, any > = {};
+
+			for (let i = 0; i < args.length; i++) {
+				_event[event.args[i]!.name] = args[i]!.toJSON();
+			}
+
+			callback(handleEventReturn(_event, getEventTypeDescription('ProposalClosed', EVENT_DATA_TYPE_DESCRIPTIONS)) as EventTypes.ProposalClosed);
+		};
+
+		return this.__subscribeOnEvent(callbackWrapper, (eventName : string) => eventName == 'ProposalClosed');
+	}
+
 
 	private __subscribeOnEvent(
 		callback : (args: any[], event: any) => void,

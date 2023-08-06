@@ -77,50 +77,6 @@ export default class Methods {
 	}
 
 	/**
-	* getProposalVote
-	*
-	* @param { (number | string | BN) } proposalId,
-	*/
-	"getProposalVote" (
-		proposalId: (number | string | BN),
-		__options ? : GasLimit,
-	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "getProposalVote", (events: EventRecord) => {
-			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
-		}, [proposalId], __options);
-	}
-
-	/**
-	* getProposal
-	*
-	* @param { (number | string | BN) } proposalId,
-	*/
-	"getProposal" (
-		proposalId: (number | string | BN),
-		__options ? : GasLimit,
-	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "getProposal", (events: EventRecord) => {
-			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
-		}, [proposalId], __options);
-	}
-
-	/**
-	* hasVoted
-	*
-	* @param { (number | string | BN) } proposalId,
-	* @param { ArgumentTypes.AccountId } accountId,
-	*/
-	"hasVoted" (
-		proposalId: (number | string | BN),
-		accountId: ArgumentTypes.AccountId,
-		__options ? : GasLimit,
-	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "hasVoted", (events: EventRecord) => {
-			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
-		}, [proposalId, accountId], __options);
-	}
-
-	/**
 	* now
 	*
 	*/
